@@ -269,6 +269,8 @@ dependencies = [
  "actix-web",
  "derive_more",
  "dotenv",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
