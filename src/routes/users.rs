@@ -1,5 +1,7 @@
-use actix_web::{web, Error, HttpRequest, HttpResponse, Responder};
+use actix_web::{web,error,Result, Responder};
 use serde::{Serialize,Deserialize};
+use derive_more::{Display, Error};
+use log::debug;
 //for response
 #[derive(Serialize)]
 struct User {
@@ -69,19 +71,38 @@ struct Info {
     user_id: u32,
     friend: String,
 }
-async fn index(info: web::Path<Info>) -> impl Responder {
+async fn path_with_struct(info: web::Path<Info>) -> impl Responder {
  return web::Json(Info{
   user_id:info.user_id,
   friend:info.friend.to_string()
  })
 }
+
+#[derive(Debug, Display, Error)]
+#[display(fmt = "my error: {}", name)]
+pub struct MyError {
+    name: &'static str,
+}
+//prepared error
+impl error::ResponseError for MyError {}
+
+async fn index() -> Result<&'static str, MyError> {
+  let err = MyError { name: "test error" };
+  debug!("{}", err);
+  Err(err)
+}
+
+
+
 pub fn scoped_config(cfg: &mut web::ServiceConfig) {
   cfg.service(
       web::scope("")
           .route("/response/json",web::get().to(response_with_json))
           .route("/params/body/{id}/{username}",web::post().to(get_body_path))
           .route("/query",web::get().to(get_info_query))
-          .route("/path/{user_id}/{friend}",web::get().to(index))
+          .route("/path/{user_id}/{friend}",web::get().to(path_with_struct))
+          .route("/error",web::get().to(index))
+
           // .route("/{id}",web::put().to(index))
           // .route("/{id}",web::delete().to(index))
   );
