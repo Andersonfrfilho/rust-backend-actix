@@ -1,4 +1,4 @@
-use actix_web::{App,web,http,test,error,Result, Responder,HttpRequest, HttpResponse, HttpMessage};
+use actix_web::{web,http,error,Result, Responder,HttpRequest, HttpResponse};
 use serde::{Serialize,Deserialize};
 use derive_more::{Display, Error};
 use log::debug;
@@ -116,7 +116,7 @@ pub fn scoped_config(cfg: &mut web::ServiceConfig) {
 //   );
 // }
 async fn index(req: HttpRequest) -> HttpResponse {
-  if let Some(hdr) = req.headers().get(http::header::CONTENT_TYPE) {
+  if let Some(_hdr) = req.headers().get(http::header::CONTENT_TYPE) {
       HttpResponse::Ok().into()
   } else {
       HttpResponse::BadRequest().into()
