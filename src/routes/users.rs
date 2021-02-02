@@ -1,4 +1,4 @@
-use actix_web::{web,error,Result, Responder};
+use actix_web::{App,web,http,test,error,Result, Responder,HttpRequest, HttpResponse, HttpMessage};
 use serde::{Serialize,Deserialize};
 use derive_more::{Display, Error};
 use log::debug;
@@ -86,7 +86,7 @@ pub struct MyError {
 //prepared error
 impl error::ResponseError for MyError {}
 
-async fn index() -> Result<&'static str, MyError> {
+async fn index_custom_error() -> Result<&'static str, MyError> {
   let err = MyError { name: "test error" };
   debug!("{}", err);
   Err(err)
@@ -101,7 +101,7 @@ pub fn scoped_config(cfg: &mut web::ServiceConfig) {
           .route("/params/body/{id}/{username}",web::post().to(get_body_path))
           .route("/query",web::get().to(get_info_query))
           .route("/path/{user_id}/{friend}",web::get().to(path_with_struct))
-          .route("/error",web::get().to(index))
+          .route("/error",web::get().to(index_custom_error))
 
           // .route("/{id}",web::put().to(index))
           // .route("/{id}",web::delete().to(index))
@@ -115,3 +115,46 @@ pub fn scoped_config(cfg: &mut web::ServiceConfig) {
 //           // .route(web::head().to(|| HttpResponse::MethodNotAllowed())),
 //   );
 // }
+async fn index(req: HttpRequest) -> HttpResponse {
+  if let Some(hdr) = req.headers().get(http::header::CONTENT_TYPE) {
+      HttpResponse::Ok().into()
+  } else {
+      HttpResponse::BadRequest().into()
+  }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_web::test;
+
+    #[actix_rt::test]
+    async fn test_index_ok() {
+        let req = test::TestRequest::with_header("content-type", "text/plain").to_http_request();
+        let resp = index(req).await;
+        assert_eq!(resp.status(), http::StatusCode::OK);
+    }
+
+    #[actix_rt::test]
+    async fn test_index_not_ok() {
+        let req = test::TestRequest::default().to_http_request();
+        let resp = index(req).await;
+        assert_eq!(resp.status(), http::StatusCode::BAD_REQUEST);
+    }
+
+    #[actix_rt::test]
+    async fn test_index_get() {
+        let mut app = test::init_service(App::new().route("/", web::get().to(index))).await;
+        let req = test::TestRequest::with_header("content-type", "text/plain").to_request();
+        let resp = test::call_service(&mut app, req).await;
+        assert!(resp.status().is_success());
+    }
+
+    #[actix_rt::test]
+    async fn test_index_post() {
+        let mut app = test::init_service(App::new().route("/", web::get().to(index))).await;
+        let req = test::TestRequest::post().uri("/").to_request();
+        let resp = test::call_service(&mut app, req).await;
+        assert!(resp.status().is_client_error());
+    }
+}
+
