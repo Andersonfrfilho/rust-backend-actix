@@ -1,7 +1,14 @@
 use actix_web::{web,http,error,Result, Responder,HttpRequest, HttpResponse};
 use serde::{Serialize,Deserialize};
 use derive_more::{Display, Error};
+use actix_session::{Session,CookieSession};
 use log::debug;
+
+use actix_files as fs;
+use actix_web::http::header::{ContentDisposition, DispositionType};
+
+use std::path::PathBuf;
+
 //for response
 #[derive(Serialize)]
 struct User {
@@ -92,7 +99,30 @@ async fn index_custom_error() -> Result<&'static str, MyError> {
   Err(err)
 }
 
+async fn index_using_session(session: Session) -> Result<HttpResponse, actix_web::Error> {
+  // access session data
+  if let Some(count) = session.get::<i32>("counter")? {
+      session.set("counter", count + 1)?;
+  } else {
+      session.set("counter", 1)?;
+  }
 
+  Ok(HttpResponse::Ok().body(format!(
+      "Count is {:?}!",
+      session.get::<i32>("counter")?.unwrap()
+  )))
+}
+
+async fn index(req: HttpRequest) -> Result<fs::NamedFile, actix_web::Error> {
+  let path: std::path::PathBuf = req.match_info().query("filename").parse().unwrap();
+  let file = fs::NamedFile::open(path)?;
+  Ok(file
+      .use_last_modified(true)
+      .set_content_disposition(ContentDisposition {
+          disposition: DispositionType::Attachment,
+          parameters: vec![],
+      }))
+}
 
 pub fn scoped_config(cfg: &mut web::ServiceConfig) {
   cfg.service(
@@ -102,6 +132,9 @@ pub fn scoped_config(cfg: &mut web::ServiceConfig) {
           .route("/query",web::get().to(get_info_query))
           .route("/path/{user_id}/{friend}",web::get().to(path_with_struct))
           .route("/error",web::get().to(index_custom_error))
+          .route("/middleware",web::get().to(index_using_session))
+          .route("/{filename:.*}", web::get().to(index))
+
 
           // .route("/{id}",web::put().to(index))
           // .route("/{id}",web::delete().to(index))
@@ -115,7 +148,9 @@ pub fn scoped_config(cfg: &mut web::ServiceConfig) {
 //           // .route(web::head().to(|| HttpResponse::MethodNotAllowed())),
 //   );
 // }
-async fn index(req: HttpRequest) -> HttpResponse {
+
+
+async fn index_for_test(req: HttpRequest) -> HttpResponse {
   if let Some(_hdr) = req.headers().get(http::header::CONTENT_TYPE) {
       HttpResponse::Ok().into()
   } else {
@@ -130,20 +165,20 @@ mod tests {
     #[actix_rt::test]
     async fn test_index_ok() {
         let req = test::TestRequest::with_header("content-type", "text/plain").to_http_request();
-        let resp = index(req).await;
+        let resp = index_for_test(req).await;
         assert_eq!(resp.status(), http::StatusCode::OK);
     }
 
     #[actix_rt::test]
     async fn test_index_not_ok() {
         let req = test::TestRequest::default().to_http_request();
-        let resp = index(req).await;
+        let resp = index_for_test(req).await;
         assert_eq!(resp.status(), http::StatusCode::BAD_REQUEST);
     }
 
     #[actix_rt::test]
     async fn test_index_get() {
-        let mut app = test::init_service(App::new().route("/", web::get().to(index))).await;
+        let mut app = test::init_service(App::new().route("/", web::get().to(index_for_test))).await;
         let req = test::TestRequest::with_header("content-type", "text/plain").to_request();
         let resp = test::call_service(&mut app, req).await;
         assert!(resp.status().is_success());
@@ -151,7 +186,7 @@ mod tests {
 
     #[actix_rt::test]
     async fn test_index_post() {
-        let mut app = test::init_service(App::new().route("/", web::get().to(index))).await;
+        let mut app = test::init_service(App::new().route("/", web::get().to(index_for_test))).await;
         let req = test::TestRequest::post().uri("/").to_request();
         let resp = test::call_service(&mut app, req).await;
         assert!(resp.status().is_client_error());

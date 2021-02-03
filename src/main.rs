@@ -1,4 +1,5 @@
-use actix_web::{ web, middleware, App, HttpServer};
+use actix_web::{ web, middleware, App, HttpServer,HttpResponse,Error};
+use actix_session::{Session,CookieSession};
 use actix_service::Service;
 use futures::future::FutureExt;
 pub mod routes;
@@ -21,6 +22,10 @@ async fn main() -> std::io::Result<()> {
           })
         })
         .wrap(middleware::DefaultHeaders::new().header("X-Version", "0.2"))
+        .wrap(
+          CookieSession::signed(&[0; 32]) // <- create cookie based session middleware
+              .secure(false),
+        )
         .service(web::scope("/users").configure(routes::users::scoped_config))
     })
     .bind("127.0.0.1:8080")?
