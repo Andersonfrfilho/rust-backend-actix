@@ -1,13 +1,12 @@
 use actix_web::{web,http,error,Result, Responder,HttpRequest, HttpResponse};
 use serde::{Serialize,Deserialize};
 use derive_more::{Display, Error};
-use actix_session::{Session,CookieSession};
+use actix_session::{Session};
 use log::debug;
 
 use actix_files as fs;
 use actix_web::http::header::{ContentDisposition, DispositionType};
 
-use std::path::PathBuf;
 
 //for response
 #[derive(Serialize)]
@@ -149,7 +148,7 @@ pub fn scoped_config(cfg: &mut web::ServiceConfig) {
 //   );
 // }
 
-
+#[allow(dead_code)]
 async fn index_for_test(req: HttpRequest) -> HttpResponse {
   if let Some(_hdr) = req.headers().get(http::header::CONTENT_TYPE) {
       HttpResponse::Ok().into()
