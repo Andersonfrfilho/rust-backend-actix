@@ -55,7 +55,7 @@ async fn get_body_path(json: web::Json<CreateSession>) -> impl Responder {
     Err(_) => panic!(), // in practice you would return the error
   };
   let validation = Validation { sub: Some("b@b.com".to_string()), ..Validation::default() };
-  let token_data = match decode::<Claims>(&token, &DecodingKey::from_secret(key), &validation) {
+  let token_data = match decode::<Claims>(&token, &DecodingKey::from_secret(key.as_ref()), &Validation::default()) {
     Ok(c) => c,
     Err(err) => match *err.kind() {
         ErrorKind::InvalidToken => panic!("Token is invalid"), // Example on how to handle a specific error
