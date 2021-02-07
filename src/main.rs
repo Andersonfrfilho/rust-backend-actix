@@ -6,7 +6,7 @@ use serde::{ Serialize, Deserialize };
 use actix_cors::Cors;
 pub mod middlewares;
 pub mod routes;
-
+pub mod errors;
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
     sub: String,
