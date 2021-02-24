@@ -9,10 +9,12 @@ use jsonwebtoken::errors::ErrorKind;
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 
+use crate::errors::custom;
+
 pub async fn validator(
     req: ServiceRequest,
     credentials: BearerAuth,
-) -> Result<ServiceRequest, Error> {
+) -> Result<ServiceRequest, custom::MyError> {
     let key = b"secret";
     let decoded = decode::<Claims>(
         &credentials.token(),
@@ -29,7 +31,8 @@ pub async fn validator(
             .unwrap_or_else(Default::default)
             .scope("urn:example:channel=HBO&urn:example:rating=G,PG-13");
 
-        Err(AuthenticationError::from(config).into())
+        // Err(AuthenticationError::from(config).into())
+        Err(custom::MyError::BadClientData)
     }
 }
 #[derive(Debug, Serialize, Deserialize)]
